@@ -6,10 +6,36 @@ module.exports = function(grunt) {
         pkg: grunt.file.readJSON('package.json'),
         typescript: {
             base: {
-                src: ['ts/SamuraiCastle/**/*.ts'],
+                src: ['ts/**/*.ts'],
                 dest: 'Build/SamuraiCastle.js',
                 options: {
-                    module: 'amd' //or commonjs
+                    module: 'amd', //or commonjs
+                    sourceMap: false
+                }
+            }
+        },
+        less: {
+            development: {
+                files: {
+                    "Build/SamuraiCastle.css": [
+                        "less/SamuraiCastle.less"
+                    ]
+                }
+            }
+        },
+        watch: {
+            scripts: {
+                files: ['ts/**/*.ts'],
+                tasks: ['typescript'],
+                options: {
+                    spawn: false
+                }
+            },
+            less: {
+                files: ['less/**/*.less'],
+                tasks: ['less'],
+                options: {
+                    spawn: false
                 }
             }
         }
@@ -19,6 +45,8 @@ module.exports = function(grunt) {
     //grunt.loadNpmTasks('grunt-contrib-uglify');
 
     // Default task(s).
-    grunt.registerTask('default', ['typescript:base']);
+    grunt.registerTask('default', ['typescript:base', 'less']);
+
+    grunt.registerTask('start', ['watch']);
 
 };
