@@ -1,6 +1,7 @@
 /**
  * Created by ElephantHunter on 12/5/2014.
  */
+declare var noise:any;
 module SamuraiCastle.Core {
     export class Board {
         private aBoardTile:Tile[] = [];
@@ -12,7 +13,8 @@ module SamuraiCastle.Core {
                 [1,0],
                 [-1,-1],
                 [-1,0],
-                [0,-1]
+                [0,-1],
+                [0,1]
             ];
         }
 
@@ -28,6 +30,7 @@ module SamuraiCastle.Core {
             return this.aBoardTileByPos[x][y];
         }
 
+        // TODO: Speed this up
         getAdjacent(x:number, y:number):Tile[] {
             var aAdjacentHexes = [];
             if (!this.tryGetHex(x, y)) return;
@@ -42,6 +45,7 @@ module SamuraiCastle.Core {
             return aAdjacentHexes;
         }
 
+        // TODO: Speed this up
         getAdjacentMatchingColor(x:number, y:number, aSearched:Tile[] = [], aAdjacentHexes:Tile[] = []):Tile[] {
             var searchHex = this.tryGetHex(x, y);
             if (!searchHex) return;
@@ -65,6 +69,7 @@ module SamuraiCastle.Core {
         addTile(x:number, y:number, color:PlayerColor) {
             var boardTile = new Tile(this, x, y, color);
 
+            // TODO: Speed this up
             this.aBoardTile.push(boardTile);
             this.aBoardTile.sort(function (a, b) {
                 if (a.y > b.y) {
@@ -89,14 +94,61 @@ module SamuraiCastle.Core {
             return this.aBoardTile;
         }
 
-        generateBoard () {
-            this.addTile(0, 0, PlayerColor.BROWN);
-            this.addTile(1, 1, PlayerColor.DARKBROWN);
-            this.addTile(1, 0, PlayerColor.DARKGREEN);
-            this.addTile(0, 1, PlayerColor.GREEN);
-            this.addTile(-1, -1, PlayerColor.SAND);
-            this.addTile(-1, 0, PlayerColor.BROWN);
-            this.addTile(0, -1, PlayerColor.DARKGREEN);
+        getRandomInt(min, max) {
+            return parseInt(Math.random() * (max - min) + min);
+        }
+
+        getColorFromNumber (iNumber:number):PlayerColor {
+            switch (iNumber) {
+                case 0:
+                    return PlayerColor.BROWN;
+                    break;
+                case 1:
+                    return PlayerColor.DARKBROWN;
+                    break;
+                case 2:
+                    return PlayerColor.DARKGREEN;
+                    break;
+                case 3:
+                    return PlayerColor.GREEN;
+                    break;
+                case 4:
+                    return PlayerColor.SAND;
+                    break;
+            }
+        }
+
+        generateBoard (iWidth:number = 60, iHeight:number = 30) {
+            var start = Date.now();
+            var centerX = iWidth / 2;
+            var centerY = iHeight / 2;
+            var distMax = Math.min(iHeight, iWidth) / 3;
+
+            var iTotalColors: number = Object.keys(PlayerColor).length / 2;
+
+            noise.seed(Math.random());
+            for (var x = 0; x < iWidth; x++) {
+                for (var y = 0; y < iHeight; y++) {
+                    var value = Math.abs(noise.perlin2(x / 5, y / 5));
+
+                    //Simple squaring, you can use whatever math libraries are available to you to make this more readable
+                    //The cool thing about squaring is that it will always give you a positive distance! (-10 * -10 = 100)
+                    var distanceX = (centerX - x) * (centerX - x);
+                    var distanceY = (centerY - y) * (centerY - y);
+
+                    var distanceToCenter = Math.sqrt(distanceX + distanceY);
+                    var distanceValue = distanceToCenter / distMax;
+                    value = 1 - ((distanceValue) * (1 - value));
+
+                    if (value > 0.5) {
+                        var randomNumber = this.getRandomInt(0, iTotalColors - 1);
+                        var randomColor = this.getColorFromNumber(randomNumber);
+                        this.addTile(x - centerX, y - centerY, randomColor);
+                    } else {
+                        value = 0;
+                    }
+                }
+            }
         }
 
         debugOrder () {

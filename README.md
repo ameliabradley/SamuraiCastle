@@ -9,5 +9,4 @@ Finished
 TODO
 =============
 - Add AI
-- Add random map generation
 - Add gameplay mechanics

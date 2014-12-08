@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <script src="../js/jquery-2.1.1.min.js"></script>
+</head>
+<body>
+<style>
+    .centerbox {
+        /* flexbox, por favor */
+        display: -webkit-box;
+        -webkit-box-orient: horizontal;
+        -webkit-box-pack: center;
+        -webkit-box-align: center;
+        display: -moz-box;
+        -moz-box-orient: horizontal;
+        -moz-box-pack: center;
+        -moz-box-align: center;
+        width: 100%;
+        height: 100%;
+        margin: 0; padding: 0;
+    }
+    body, html { width: 100%; height: 100%; padding: 0; margin: 0; }
+    canvas {
+        /* border-radius: 30px;  Border radiuses don't seem to work with putImageData */
+        box-shadow: 0 0 10px #777;
+        width: 1024px;
+        height: 768px;
+    }
+    body {
+        background-color: #eee;
+    }
+</style>
+<div class='centerbox'><canvas></canvas></div>
+<script src='perlin.js'></script>
+<script>
+    var canvas = document.getElementsByTagName('canvas')[0];
+    canvas.width = 60;//$(canvas).width();
+    canvas.height = 30;//$(canvas).height();
+    var ctx = canvas.getContext('2d');
+    var image = ctx.createImageData(canvas.width, canvas.height);
+    var data = image.data;
+    var start = Date.now();
+
+    var centerX = canvas.width / 2;
+    var centerY = canvas.height / 2;
+    var distMax = Math.min(canvas.height, canvas.width) / 3;
+
+    noise.seed(Math.random());
+    for (var x = 0; x < canvas.width; x++) {
+        for (var y = 0; y < canvas.height; y++) {
+            var value = Math.abs(noise.perlin2(x / 5, y / 5));
+
+            //Simple squaring, you can use whatever math libraries are available to you to make this more readable
+            //The cool thing about squaring is that it will always give you a positive distance! (-10 * -10 = 100)
+            var distanceX = (centerX - x) * (centerX - x);
+            var distanceY = (centerY - y) * (centerY - y);
+
+            var distanceToCenter = Math.sqrt(distanceX + distanceY);
+            var distanceValue = distanceToCenter / distMax;
+            value = 1 - ((distanceValue) * (1 - value));
+
+            if (value > 0.5) {
+                value = 1;
+            } else {
+                value = 0;
+            }
+
+            //value *=
+
+            value *= 256;
+            var cell = (x + y * canvas.width) * 4;
+            data[cell] = data[cell + 1] = data[cell + 2] = value;
+            //data[cell] += Math.max(0, (25 - value) * 8);
+            data[cell + 3] = 255; // alpha.
+        }
+    }
+    /* // Benchmark code.
+     start = Date.now();
+     for (var x = 0; x < 10000; x++) {
+     for (var y = 0; y < 10000; y++) {
+     noise.simplex2(x / 50, y/50);
+     }
+     }*/
+    var end = Date.now();
+    ctx.fillColor = 'black';
+    ctx.fillRect(0, 0, 100, 100);
+    ctx.putImageData(image, 0, 0);
+//    ctx.font = '16px sans-serif'
+//    ctx.textAlign = 'center';
+    //console.debug('Rendered in ' + (end - start) + ' ms', canvas.width / 2, canvas.height - 20);
+    if(console) {
+        console.log('Rendered in ' + (end - start) + ' ms');
+    }
+</script>
+</body>
+</html>

@@ -1,6 +1,3 @@
-/**
- * Created by ElephantHunter on 12/5/2014.
- */
 var SamuraiCastle;
 (function (SamuraiCastle) {
     var Core;
@@ -19,7 +16,8 @@ var SamuraiCastle;
                         [1, 0],
                         [-1, -1],
                         [-1, 0],
-                        [0, -1]
+                        [0, -1],
+                        [0, 1]
                     ];
                 },
                 enumerable: true,
@@ -34,6 +32,7 @@ var SamuraiCastle;
                 }
                 return this.aBoardTileByPos[x][y];
             };
+            // TODO: Speed this up
             Board.prototype.getAdjacent = function (x, y) {
                 var _this = this;
                 var aAdjacentHexes = [];
@@ -49,6 +48,7 @@ var SamuraiCastle;
                 });
                 return aAdjacentHexes;
             };
+            // TODO: Speed this up
             Board.prototype.getAdjacentMatchingColor = function (x, y, aSearched, aAdjacentHexes) {
                 var _this = this;
                 if (aSearched === void 0) { aSearched = []; }
@@ -73,6 +73,7 @@ var SamuraiCastle;
             };
             Board.prototype.addTile = function (x, y, color) {
                 var boardTile = new Core.Tile(this, x, y, color);
+                // TODO: Speed this up
                 this.aBoardTile.push(boardTile);
                 this.aBoardTile.sort(function (a, b) {
                     if (a.y > b.y) {
@@ -93,14 +94,57 @@ var SamuraiCastle;
             Board.prototype.getTiles = function () {
                 return this.aBoardTile;
             };
-            Board.prototype.generateBoard = function () {
-                this.addTile(0, 0, 0 /* BROWN */);
-                this.addTile(1, 1, 2 /* DARKBROWN */);
-                this.addTile(1, 0, 3 /* DARKGREEN */);
-                this.addTile(0, 1, 1 /* GREEN */);
-                this.addTile(-1, -1, 4 /* SAND */);
-                this.addTile(-1, 0, 0 /* BROWN */);
-                this.addTile(0, -1, 3 /* DARKGREEN */);
+            Board.prototype.getRandomInt = function (min, max) {
+                return parseInt(Math.random() * (max - min) + min);
+            };
+            Board.prototype.getColorFromNumber = function (iNumber) {
+                switch (iNumber) {
+                    case 0:
+                        return 0 /* BROWN */;
+                        break;
+                    case 1:
+                        return 2 /* DARKBROWN */;
+                        break;
+                    case 2:
+                        return 3 /* DARKGREEN */;
+                        break;
+                    case 3:
+                        return 1 /* GREEN */;
+                        break;
+                    case 4:
+                        return 4 /* SAND */;
+                        break;
+                }
+            };
+            Board.prototype.generateBoard = function (iWidth, iHeight) {
+                if (iWidth === void 0) { iWidth = 60; }
+                if (iHeight === void 0) { iHeight = 30; }
+                var start = Date.now();
+                var centerX = iWidth / 2;
+                var centerY = iHeight / 2;
+                var distMax = Math.min(iHeight, iWidth) / 3;
+                var iTotalColors = Object.keys(Core.PlayerColor).length / 2;
+                noise.seed(Math.random());
+                for (var x = 0; x < iWidth; x++) {
+                    for (var y = 0; y < iHeight; y++) {
+                        var value = Math.abs(noise.perlin2(x / 5, y / 5));
+                        //Simple squaring, you can use whatever math libraries are available to you to make this more readable
+                        //The cool thing about squaring is that it will always give you a positive distance! (-10 * -10 = 100)
+                        var distanceX = (centerX - x) * (centerX - x);
+                        var distanceY = (centerY - y) * (centerY - y);
+                        var distanceToCenter = Math.sqrt(distanceX + distanceY);
+                        var distanceValue = distanceToCenter / distMax;
+                        value = 1 - ((distanceValue) * (1 - value));
+                        if (value > 0.5) {
+                            var randomNumber = this.getRandomInt(0, iTotalColors - 1);
+                            var randomColor = this.getColorFromNumber(randomNumber);
+                            this.addTile(x - centerX, y - centerY, randomColor);
+                        }
+                        else {
+                            value = 0;
+                        }
+                    }
+                }
             };
             Board.prototype.debugOrder = function () {
                 this.aBoardTile.forEach(function (boardTile) { return console.log(boardTile.toString()); });
