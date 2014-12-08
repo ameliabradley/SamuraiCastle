@@ -4,6 +4,63 @@
 module SamuraiCastle.Core {
     export class Board {
         private aBoardTile:Tile[] = [];
+        private aBoardTileByPos:Tile[][] = [];
+
+        get adjacentHexes():number[][] {
+            return [
+                [1,1],
+                [1,0],
+                [-1,-1],
+                [-1,0],
+                [0,-1]
+            ];
+        }
+
+        tryGetHex(x:number, y:number):Tile {
+            if (!this.aBoardTileByPos[x]) {
+                return null;
+            }
+
+            if (!this.aBoardTileByPos[x][y]) {
+                return null;
+            }
+
+            return this.aBoardTileByPos[x][y];
+        }
+
+        getAdjacent(x:number, y:number):Tile[] {
+            var aAdjacentHexes = [];
+            if (!this.tryGetHex(x, y)) return;
+            this.adjacentHexes.forEach((hexPos) => {
+                var xDiff = hexPos[0];
+                var yDiff = hexPos[1];
+                var hex = this.tryGetHex(x + xDiff, y + yDiff);
+                if (hex) {
+                    aAdjacentHexes.push(hex);
+                }
+            });
+            return aAdjacentHexes;
+        }
+
+        getAdjacentMatchingColor(x:number, y:number, aSearched:Tile[] = [], aAdjacentHexes:Tile[] = []):Tile[] {
+            var searchHex = this.tryGetHex(x, y);
+            if (!searchHex) return;
+            this.adjacentHexes.forEach((hexPos) => {
+                var xDiff = x + hexPos[0];
+                var yDiff = y + hexPos[1];
+                var hex = this.tryGetHex(xDiff, yDiff);
+                if (hex && hex.color == searchHex.color) {
+                    if (aSearched.indexOf(hex) !== -1) {
+                        return;
+                    }
+
+                    aSearched.push(hex);
+                    aAdjacentHexes.push(hex);
+                    this.getAdjacentMatchingColor(xDiff, yDiff, aSearched, aAdjacentHexes);
+                }
+            });
+            return aAdjacentHexes;
+        }
 
         addTile(x:number, y:number, color:PlayerColor) {
             var boardTile = new Tile(this, x, y, color);
@@ -20,6 +77,12 @@ module SamuraiCastle.Core {
 
                 return -1;
             });
+
+            if (!this.aBoardTileByPos[x]) {
+                this.aBoardTileByPos[x] = [];
+            }
+
+            this.aBoardTileByPos[x][y] = boardTile;
         }
 
         getTiles():Tile[] {

@@ -1,3 +1,5 @@
-Build/*
+Build/**/*
 node_modules/*
 npm-debug.log
+Build/SamuraiCastle.js
+Build/SamuraiCastle.js

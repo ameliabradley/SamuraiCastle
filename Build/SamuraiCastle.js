@@ -8,9 +8,69 @@ var SamuraiCastle;
         var Board = (function () {
             function Board() {
                 this.aBoardTile = [];
+                this.aBoardTileByPos = [];
                 this.generateBoard();
                 this.debugOrder();
             }
+            Object.defineProperty(Board.prototype, "adjacentHexes", {
+                get: function () {
+                    return [
+                        [1, 1],
+                        [1, 0],
+                        [-1, -1],
+                        [-1, 0],
+                        [0, -1]
+                    ];
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Board.prototype.tryGetHex = function (x, y) {
+                if (!this.aBoardTileByPos[x]) {
+                    return null;
+                }
+                if (!this.aBoardTileByPos[x][y]) {
+                    return null;
+                }
+                return this.aBoardTileByPos[x][y];
+            };
+            Board.prototype.getAdjacent = function (x, y) {
+                var _this = this;
+                var aAdjacentHexes = [];
+                if (!this.tryGetHex(x, y))
+                    return;
+                this.adjacentHexes.forEach(function (hexPos) {
+                    var xDiff = hexPos[0];
+                    var yDiff = hexPos[1];
+                    var hex = _this.tryGetHex(x + xDiff, y + yDiff);
+                    if (hex) {
+                        aAdjacentHexes.push(hex);
+                    }
+                });
+                return aAdjacentHexes;
+            };
+            Board.prototype.getAdjacentMatchingColor = function (x, y, aSearched, aAdjacentHexes) {
+                var _this = this;
+                if (aSearched === void 0) { aSearched = []; }
+                if (aAdjacentHexes === void 0) { aAdjacentHexes = []; }
+                var searchHex = this.tryGetHex(x, y);
+                if (!searchHex)
+                    return;
+                this.adjacentHexes.forEach(function (hexPos) {
+                    var xDiff = x + hexPos[0];
+                    var yDiff = y + hexPos[1];
+                    var hex = _this.tryGetHex(xDiff, yDiff);
+                    if (hex && hex.color == searchHex.color) {
+                        if (aSearched.indexOf(hex) !== -1) {
+                            return;
+                        }
+                        aSearched.push(hex);
+                        aAdjacentHexes.push(hex);
+                        _this.getAdjacentMatchingColor(xDiff, yDiff, aSearched, aAdjacentHexes);
+                    }
+                });
+                return aAdjacentHexes;
+            };
             Board.prototype.addTile = function (x, y, color) {
                 var boardTile = new Core.Tile(this, x, y, color);
                 this.aBoardTile.push(boardTile);
@@ -25,6 +85,10 @@ var SamuraiCastle;
                     }
                     return -1;
                 });
+                if (!this.aBoardTileByPos[x]) {
+                    this.aBoardTileByPos[x] = [];
+                }
+                this.aBoardTileByPos[x][y] = boardTile;
             };
             Board.prototype.getTiles = function () {
                 return this.aBoardTile;
@@ -134,61 +198,83 @@ var SamuraiCastle;
 (function (SamuraiCastle) {
     var Html5;
     (function (Html5) {
-        var PlayerColor = SamuraiCastle.Core.PlayerColor;
         var Board = SamuraiCastle.Core.Board;
         var HtmlBoard = (function () {
             function HtmlBoard() {
+                this.htmlTileByPos = [];
                 var s = Snap("#GameBody");
                 var self = this;
-                Snap.load("assets/hex.svg", function (f) {
-                    f.select("#hexBackground").addClass("hexBackground");
-                    var iHexSmallWidth = 52;
-                    var iHexHeight = 44;
-                    var g = f.select("#layer1");
-                    $(g.node).children(":not(.hexBackground)").attr("pointer-events", "none");
-                    var tile = s.g();
-                    tile.append(g);
-                    var tiles = s.g();
-                    s.append(tiles);
-                    var board = new Board();
-                    board.getTiles().forEach(function (item, index, array) {
-                        var newSnap = Snap(tile.clone());
-                        var tileClone = newSnap.select("g");
-                        var iX = item.x * iHexSmallWidth;
-                        var iY = (item.y * iHexHeight) - (item.x * iHexHeight / 2);
-                        var color = self.getHexByColor(item.color);
-                        newSnap.select(".hexBackground").attr({ fill: color });
-                        //console.debug(color.toString());
-                        var mDefault = new Snap.Matrix();
-                        mDefault.translate(iX, iY);
-                        tileClone.animate({
-                            transform: mDefault
-                        }, 0);
-                        tileClone.mouseover(function () {
-                            console.debug(item.toString());
-                            var m = new Snap.Matrix();
-                            m.translate(iX, iY + (-iHexHeight / 3));
-                            tileClone.animate({
-                                transform: m
-                            }, 500, mina.easein);
-                        }).mouseout(function () {
-                            tileClone.animate({
-                                transform: mDefault
-                            }, 500, mina.easein);
-                        });
-                        tiles.append(tileClone);
+                this._board = new Board();
+                var jSvgCanvas = $("#GameBody");
+                var iWidth = jSvgCanvas.width();
+                var iHeight = jSvgCanvas.height();
+                var m = new Snap.Matrix();
+                m.translate(iWidth / 2, iHeight / 2);
+                // Create a wrapper for all tiles
+                // so they can be easily moved around as a group
+                this.tiles = s.g().drag().transform(m);
+                s.append(this.tiles);
+                Html5.HtmlTile.prepareAsset(s, function () {
+                    self._board.getTiles().forEach(function (tile, index, array) {
+                        var htmlTile = new Html5.HtmlTile(self, self.tiles, tile);
+                        if (!self.htmlTileByPos[tile.x]) {
+                            self.htmlTileByPos[tile.x] = [];
+                        }
+                        self.htmlTileByPos[tile.x][tile.y] = htmlTile;
                     });
-                    var jSvgCanvas = $("#GameBody");
-                    var iWidth = jSvgCanvas.width();
-                    var iHeight = jSvgCanvas.height();
-                    var m = new Snap.Matrix();
-                    m.translate(iWidth / 2, iHeight / 2);
-                    tile.remove();
-                    tiles.transform(m);
-                    tiles.drag();
                 });
             }
-            HtmlBoard.prototype.getHexByColor = function (color) {
+            HtmlBoard.prototype.getHtmlTileByTile = function (tile) {
+                return this.htmlTileByPos[tile.x][tile.y];
+            };
+            Object.defineProperty(HtmlBoard.prototype, "board", {
+                get: function () {
+                    return this._board;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            return HtmlBoard;
+        })();
+        Html5.HtmlBoard = HtmlBoard;
+    })(Html5 = SamuraiCastle.Html5 || (SamuraiCastle.Html5 = {}));
+})(SamuraiCastle || (SamuraiCastle = {}));
+/**
+ * Created by ElephantHunter on 12/6/2014.
+ */
+var SamuraiCastle;
+(function (SamuraiCastle) {
+    var Html5;
+    (function (Html5) {
+        var PlayerColor = SamuraiCastle.Core.PlayerColor;
+        var HtmlTile = (function () {
+            function HtmlTile(htmlBoard, tiles, tile) {
+                var self = this;
+                this.x = tile.x * HtmlTile.iHexSmallWidth;
+                this.y = (tile.y * HtmlTile.iHexHeight) - (tile.x * HtmlTile.iHexHeight / 2);
+                var newSnap = Snap(HtmlTile.tileTemplate.clone());
+                this.tileElement = newSnap.select("g");
+                // Fill in the correct color for this tile
+                var color = self.getHexByColor(tile.color);
+                newSnap.select(".hexBackground").attr({ fill: color });
+                this.returnToOriginalPosition(0);
+                this.tileElement.mouseover(function () {
+                    console.debug(tile.toString());
+                    var aAdjacent = htmlBoard.board.getAdjacentMatchingColor(tile.x, tile.y);
+                    self.levitate();
+                    aAdjacent.forEach(function (item) {
+                        htmlBoard.getHtmlTileByTile(item).levitate();
+                    });
+                }).mouseout(function () {
+                    var aAdjacent = htmlBoard.board.getAdjacentMatchingColor(tile.x, tile.y);
+                    self.returnToOriginalPosition();
+                    aAdjacent.forEach(function (item) {
+                        htmlBoard.getHtmlTileByTile(item).returnToOriginalPosition();
+                    });
+                });
+                tiles.append(this.tileElement);
+            }
+            HtmlTile.prototype.getHexByColor = function (color) {
                 switch (color) {
                     case 0 /* BROWN */:
                         return "#fc7100";
@@ -204,8 +290,43 @@ var SamuraiCastle;
                         return "#ff0000";
                 }
             };
-            return HtmlBoard;
+            HtmlTile.prepareAsset = function (paper, fnCallback) {
+                Snap.load("assets/hex.svg", function (f) {
+                    // Snap will delete any IDs when cloning
+                    // so we must use classes
+                    f.select("#hexBackground").addClass("hexBackground");
+                    // Grab the layer we want to use
+                    var groupLayer1 = f.select("#layer1");
+                    // Hide pointer events on everything but the background
+                    // to prevent the events from triggering numerous times
+                    $(groupLayer1.node).children(":not(.hexBackground)").attr("pointer-events", "none");
+                    // Create the tile template object
+                    HtmlTile.tileTemplate = paper.g();
+                    HtmlTile.tileTemplate.append(groupLayer1);
+                    //HtmlTile.tileTemplate.remove();
+                    fnCallback();
+                });
+            };
+            HtmlTile.prototype.levitate = function (speed) {
+                if (speed === void 0) { speed = 500; }
+                var m = new Snap.Matrix();
+                m.translate(this.x, this.y + (-HtmlTile.iHexHeight / 8));
+                this.tileElement.animate({
+                    transform: m
+                }, speed, mina.easein);
+            };
+            HtmlTile.prototype.returnToOriginalPosition = function (speed) {
+                if (speed === void 0) { speed = 500; }
+                var mDefault = new Snap.Matrix();
+                mDefault.translate(this.x, this.y);
+                this.tileElement.animate({
+                    transform: mDefault
+                }, speed, mina.easein);
+            };
+            HtmlTile.iHexSmallWidth = 52;
+            HtmlTile.iHexHeight = 44;
+            return HtmlTile;
         })();
-        Html5.HtmlBoard = HtmlBoard;
+        Html5.HtmlTile = HtmlTile;
     })(Html5 = SamuraiCastle.Html5 || (SamuraiCastle.Html5 = {}));
 })(SamuraiCastle || (SamuraiCastle = {}));

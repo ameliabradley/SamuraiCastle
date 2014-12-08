@@ -4,87 +4,48 @@
 module SamuraiCastle.Html5 {
     import PlayerColor = SamuraiCastle.Core.PlayerColor;
     import Board = SamuraiCastle.Core.Board;
+    import Tile = SamuraiCastle.Core.Tile;
 
     export class HtmlBoard {
-        getHexByColor(color:PlayerColor):String {
-            switch (color) {
-                case PlayerColor.BROWN:
-                    return "#fc7100";
-                case PlayerColor.GREEN:
-                    return "#76fc00";
-                case PlayerColor.DARKBROWN:
-                    return "#b87000";
-                case PlayerColor.DARKGREEN:
-                    return "#79b800";
-                case PlayerColor.SAND:
-                    return "#fffd16";
-                default:
-                    return "#ff0000";
-            }
+        private htmlTileByPos:HtmlTile[][] = [];
+        private tiles:any;
+        private _board;
+
+        getHtmlTileByTile (tile:Tile):HtmlTile {
+            return this.htmlTileByPos[tile.x][tile.y];
+        }
+
+        get board():Board {
+            return this._board;
         }
 
         constructor() {
             var s = Snap("#GameBody");
             var self = this;
 
-            Snap.load("assets/hex.svg", function (f) {
-                f.select("#hexBackground").addClass("hexBackground");
+            this._board = new Board();
+            var jSvgCanvas = $("#GameBody");
+            var iWidth = jSvgCanvas.width();
+            var iHeight = jSvgCanvas.height();
 
-                var iHexSmallWidth = 52;
-                var iHexHeight = 44;
-                var g:any = f.select("#layer1");
-                $(g.node).children(":not(.hexBackground)").attr("pointer-events", "none");
+            var m:any = new Snap.Matrix();
+            m.translate(iWidth / 2, iHeight / 2);
 
-                var tile = s.g();
-                tile.append(g);
+            // Create a wrapper for all tiles
+            // so they can be easily moved around as a group
+            this.tiles = s.g().drag().transform(m);
+            s.append(this.tiles);
 
-                var tiles = s.g();
-                s.append(tiles);
+            HtmlTile.prepareAsset(s, function () {
+                self._board.getTiles().forEach((tile, index, array) => {
+                    var htmlTile = new HtmlTile(self, self.tiles, tile);
 
-                var board = new Board();
-                board.getTiles().forEach((item, index, array) => {
-                    var newSnap = Snap(tile.clone());
-                    var tileClone:any = newSnap.select("g");
-                    var iX = item.x * iHexSmallWidth;
-                    var iY = (item.y * iHexHeight) - (item.x * iHexHeight / 2);
+                    if (!self.htmlTileByPos[tile.x]) {
+                        self.htmlTileByPos[tile.x] = [];
+                    }
 
-                    var color = self.getHexByColor(item.color);
-                    newSnap.select(".hexBackground").attr({fill: color});
-                    //console.debug(color.toString());
-
-                    var mDefault:any = new Snap.Matrix();
-                    mDefault.translate(iX, iY);
-                    tileClone.animate({
-                        transform: mDefault
-                    }, 0);
-                    
-                    tileClone.mouseover(function () {
-                        console.debug(item.toString());
-                        var m:any = new Snap.Matrix();
-                        m.translate(iX, iY + (-iHexHeight / 3));
-
-                        tileClone.animate({
-                            transform: m
-                        }, 500, mina.easein);
-                    }).mouseout(function () {
-                        tileClone.animate({
-                            transform: mDefault
-                        }, 500, mina.easein);
-                    });
-
-                    tiles.append(tileClone);
+                    self.htmlTileByPos[tile.x][tile.y] = htmlTile;
                 });
-
-                var jSvgCanvas = $("#GameBody");
-                var iWidth = jSvgCanvas.width();
-                var iHeight = jSvgCanvas.height();
-
-                var m:any = new Snap.Matrix();
-                m.translate(iWidth / 2, iHeight / 2);
-
-                tile.remove();
-                tiles.transform(m);
-                tiles.drag();
             });
         }
     }
